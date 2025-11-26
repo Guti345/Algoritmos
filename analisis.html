@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Teoría de Grafos - Red Aérea</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c4a6e 0%, #1e293b 100%);
+            color: white;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 16px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+        }
+        
+        .card h3 {
+            color: #3b82f6;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+        
+        .metric-value {
+            color: #06b6d4;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .hub-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .hub-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .hub-rank {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fbbf24;
+            width: 30px;
+        }
+        
+        .hub-info h4 {
+            color: #3b82f6;
+            margin-bottom: 5px;
+        }
+        
+        .hub-info p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        
+        .hub-stats {
+            text-align: right;
+            color: #06b6d4;
+            font-weight: 600;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #3b82f6, #06b6d4);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: #06b6d4;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(59, 130, 246, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #3b82f6, #06b6d4);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .community-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .community-item {
+            background: rgba(59, 130, 246, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .error {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Análisis de Teoría de Grafos</h1>
+            <p>Análisis completo de la red global de aerolíneas</p>
+        </div>
+        
+        <div class="controls">
+            <button class="btn" onclick="cargarDatos()" id="btnCargar">
+                📡 Cargar Datos del Grafo
+            </button>
+            <button class="btn" onclick="ejecutarAnalisisCompleto()" id="btnAnalizar" disabled>
+                🔍 Ejecutar Análisis Completo
+            </button>
+            <button class="btn" onclick="exportarResultados()" id="btnExportar" disabled>
+                💾 Exportar Resultados
+            </button>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p id="loadingText">Cargando...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+            </div>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="resultados" style="display: none;">
+            <div class="grid">
+                <!-- Propiedades Básicas -->
+                <div class="card">
+                    <h3>📈 Propiedades Básicas</h3>
+                    <div id="propiedadesBasicas"></div>
+                </div>
+                
+                <!-- Conectividad -->
+                <div class="card">
+                    <h3>🌐 Análisis de Conectividad</h3>
+                    <div id="conectividad"></div>
+                </div>
+                
+                <!-- Centralidades Top -->
+                <div class="card">
+                    <h3>🎯 Métricas de Centralidad</h3>
+                    <div id="centralidades"></div>
+                </div>
+                
+                <!-- Comunidades -->
+                <div class="card">
+                    <h3>👥 Detección de Comunidades</h3>
+                    <div id="comunidades"></div>
+                </div>
+            </div>
+            
+            <!-- Distribución de Grados -->
+            <div class="card full-width">
+                <h3>📊 Distribución de Grados</h3>
+                <div class="chart-container">
+                    <canvas id="gradosChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Top Hubs -->
+            <div class="card full-width">
+                <h3>🛫 Top 10 Aeropuertos Hub</h3>
+                <div id="topHubs" class="hub-list"></div>
+            </div>
+            
+            <!-- Métricas de Aerolíneas -->
+            <div class="grid">
+                <div class="card">
+                    <h3>✈️ Métricas de Aerolíneas</h3>
+                    <div id="metricasAerolineas"></div>
+                </div>
+                
+                <div class="card">
+                    <h3>🌍 Conectividad Regional</h3>
+                    <div id="conectividadRegional"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="main.js"></script>
+    <script src="analisis.js"></script>
+    <script>
+        let datosAnalisis = null;
+        
+        function parsearCSV(texto, separador = ',') {
+            const lineas = texto.trim().split('\n');
+            const headers = lineas[0].split(separador);
+            return lineas.slice(1).map(linea => {
+                const valores = [];
+                let valorActual = '';
+                let dentroComillas = false;
+                
+                for (let i = 0; i < linea.length; i++) {
+                    const char = linea[i];
+                    if (char === '"') {
+                        dentroComillas = !dentroComillas;
+                    } else if (char === separador && !dentroComillas) {
+                        valores.push(valorActual.trim());
+                        valorActual = '';
+                    } else {
+                        valorActual += char;
+                    }
+                }
+                valores.push(valorActual.trim());
+                
+                const obj = {};
+                headers.forEach((header, idx) => {
+                    obj[header.trim()] = valores[idx] || '';
+                });
+                return obj;
+            });
+        }
+        
+        // Asegurarse de que la clase Grafo esté disponible
+        if (typeof Grafo === 'undefined') {
+            console.log('Definiendo clase Grafo localmente...');
+            
+            class Grafo {
+                constructor(aeropuertos, vuelos) {
+                    this.aeropuertos = aeropuertos;
+                    this.vuelos = vuelos;
+                    this.indicePorId = new Map();
+                    
+                    aeropuertos.forEach((airport, idx) => {
+                        this.indicePorId.set(airport.id, idx);
+                    });
+                    
+                    const n = aeropuertos.length;
+                    this.adj = Array.from({ length: n }, () => []);
+                    
+                    vuelos.forEach(vuelo => {
+                        const origenIdx = this.indicePorId.get(vuelo.origen);
+                        const destinoIdx = this.indicePorId.get(vuelo.destino);
+                        if (origenIdx !== undefined && destinoIdx !== undefined) {
+                            this.adj[origenIdx].push({
+                                destino: destinoIdx,
+                                distancia: vuelo.distancia,
+                                aerolinea: vuelo.aerolinea,
+                                codigo: vuelo.codigoAerolinea
+                            });
+                        }
+                    });
+                }
+
+                vecinos(idx) {
+                    return this.adj[idx] || [];
+                }
+
+                dijkstra(origenIdx, destinoIdx) {
+                    const n = this.aeropuertos.length;
+                    const dist = Array(n).fill(Infinity);
+                    const prev = Array(n).fill(-1);
+                    const visitado = new Set();
+                    const pq = [[0, origenIdx]];
+                    
+                    dist[origenIdx] = 0;
+                    
+                    while (pq.length > 0) {
+                        pq.sort((a, b) => a[0] - b[0]);
+                        const [distActual, u] = pq.shift();
+                        
+                        if (visitado.has(u)) continue;
+                        if (u === destinoIdx) break;
+                        
+                        visitado.add(u);
+                        
+                        this.vecinos(u).forEach(conexion => {
+                            const v = conexion.destino;
+                            const peso = conexion.distancia;
+                            const alt = dist[u] + peso;
+                            
+                            if (alt < dist[v]) {
+                                dist[v] = alt;
+                                prev[v] = u;
+                                pq.push([alt, v]);
+                            }
+                        });
+                    }
+                    
+                    const ruta = [];
+                    if (dist[destinoIdx] === Infinity) return { ruta: [], distancia: Infinity };
+                    
+                    for (let v = destinoIdx; v !== -1; v = prev[v]) {
+                        ruta.unshift(v);
+                    }
+                    
+                    return { ruta, distancia: dist[destinoIdx] };
+                }
+
+                buscarAeropuerto(query) {
+                    const q = query.toLowerCase();
+                    return this.aeropuertos.filter(airport => 
+                        airport.nombre.toLowerCase().includes(q) ||
+                        airport.ciudad.toLowerCase().includes(q) ||
+                        airport.pais.toLowerCase().includes(q) ||
+                        (airport.iata && airport.iata.toLowerCase().includes(q)) ||
+                        (airport.icao && airport.icao.toLowerCase().includes(q))
+                    ).slice(0, 10);
+                }
+            }
+            
+            window.Grafo = Grafo;
+        }
+        
+        async function cargarDatos() {
+            mostrarLoading('Cargando datos del grafo principal...');
+            
+            try {
+                // Verificar si ya tenemos el grafo cargado
+                if (window.grafo && window.aeropuertos && window.aeropuertos.length > 0) {
+                    document.getElementById('btnAnalizar').disabled = false;
+                    mostrarExito('Datos ya cargados desde la página principal');
+                    return;
+                }
+                
+                actualizarProgreso(20, 'Cargando archivos CSV...');
+                
+                // Cargar los datos directamente
+                const datos = await cargarDatosDirectamente();
+                if (!datos) {
+                    throw new Error('No se pudieron cargar los archivos CSV');
+                }
+                
+                actualizarProgreso(60, 'Creando estructura del grafo...');
+                
+                // Crear el grafo
+                window.aeropuertos = datos.aeropuertos;
+                window.vuelos = datos.vuelos;
+                window.grafo = new Grafo(datos.aeropuertos, datos.vuelos);
+                
+                actualizarProgreso(100, 'Datos cargados exitosamente');
+                
+                if (window.grafo && window.aeropuertos.length > 0) {
+                    document.getElementById('btnAnalizar').disabled = false;
+                    mostrarExito(`Datos cargados: ${window.aeropuertos.length} aeropuertos, ${window.vuelos.length} vuelos`);
+                } else {
+                    throw new Error('Error en la creación del grafo');
+                }
+            } catch (error) {
+                mostrarError('Error cargando datos: ' + error.message);
+                console.error('Error detallado:', error);
+            } finally {
+                ocultarLoading();
+            }
+        }
+        
+        async function cargarDatosDirectamente() {
+            try {
+                const [nodosRaw, aristasRaw] = await Promise.all([
+                    fetch('data/nodes.csv').then(r => {
+                        if (!r.ok) throw new Error(`Error HTTP: ${r.status} para nodes.csv`);
+                        return r.text();
+                    }),
+                    fetch('data/edges.csv').then(r => {
+                        if (!r.ok) throw new Error(`Error HTTP: ${r.status} para edges.csv`);
+                        return r.text();
+                    })
+                ]);
+
+                actualizarProgreso(40, 'Procesando aeropuertos...');
+                
+                const nodosData = parsearCSV(nodosRaw);
+                const aeropuertos = nodosData.map((row, idx) => ({
+                    id: parseInt(row['id'] || row[' id']) || idx,
+                    indice: parseInt(row['# index'] || row.index || row['index']),
+                    nombre: row['name'] || row[' name'] || '',
+                    ciudad: row['city'] || row[' city'] || '',
+                    pais: row['country'] || row[' country'] || '',
+                    iata: row['IATA/FAA'] || row['IATA'] || '',
+                    icao: row['ICAO'] || row[' ICAO'] || '',
+                    lat: parseFloat(row['latitude'] || row[' latitude']) || 0,
+                    lng: parseFloat(row['longitude'] || row[' longitude']) || 0,
+                    altitud: parseInt(row['altitude'] || row[' altitude']) || 0
+                })).filter(airport => !isNaN(airport.lat) && !isNaN(airport.lng));
+
+                actualizarProgreso(50, 'Procesando vuelos...');
+                
+                const aristasData = parsearCSV(aristasRaw);
+                const vuelos = aristasData.map(row => ({
+                    origen: parseInt(row['source'] || row['# source']) || 0,
+                    destino: parseInt(row['target'] || row[' target']) || 0,
+                    distancia: parseFloat(row['distance'] || row[' distance']) || 0,
+                    aerolinea: row['airline'] || row[' airline'] || '',
+                    codigoAerolinea: parseInt(row['airline_code'] || row[' airline_code']) || 0
+                })).filter(vuelo => vuelo.distancia > 0);
+
+                return { aeropuertos, vuelos };
+            } catch (error) {
+                console.error('Error en cargarDatosDirectamente:', error);
+                throw error;
+            }
+        }
+        
+        async function ejecutarAnalisisCompleto() {
+            if (!window.grafo) {
+                mostrarError('Primero debes cargar los datos del grafo');
+                return;
+            }
+            
+            mostrarLoading('Ejecutando análisis completo...');
+            
+            try {
+                const pasos = [
+                    'Calculando propiedades básicas...',
+                    'Analizando centralidades...',
+                    'Evaluando conectividad...',
+                    'Detectando comunidades...',
+                    'Identificando hubs...',
+                    'Calculando métricas específicas...',
+                    'Generando visualizaciones...'
+                ];
+                
+                for (let i = 0; i < pasos.length; i++) {
+                    actualizarProgreso((i + 1) / pasos.length * 100, pasos[i]);
+                    await esperar(500);
+                }
+                
+                datosAnalisis = await ejecutarAnalisis();
+                
+                if (datosAnalisis) {
+                    mostrarResultados(datosAnalisis);
+                    document.getElementById('btnExportar').disabled = false;
+                    mostrarExito('Análisis completado exitosamente');
+                } else {
+                    throw new Error('Error ejecutando el análisis');
+                }
+            } catch (error) {
+                mostrarError('Error en análisis: ' + error.message);
+                console.error(error);
+            } finally {
+                ocultarLoading();
+            }
+        }
+        
+        function mostrarResultados(resultados) {
+            document.getElementById('resultados').style.display = 'block';
+            
+            mostrarPropiedadesBasicas(resultados.basicas);
+            mostrarConectividad(resultados.conectividad);
+            mostrarCentralidades(resultados.centralidades);
+            mostrarComunidades(resultados.comunidades);
+            mostrarTopHubs(resultados.hubs.top10);
+            mostrarMetricasAerolineas(resultados.aerolineas);
+            crearGraficoGrados(resultados.basicas.distribuccionGrados);
+        }
+        
+        function mostrarPropiedadesBasicas(basicas) {
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Nodos (Aeropuertos)</span>
+                    <span class="metric-value">${basicas.nodos.toLocaleString()}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Aristas (Vuelos)</span>
+                    <span class="metric-value">${basicas.aristas.toLocaleString()}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Densidad</span>
+                    <span class="metric-value">${(basicas.densidad * 100).toFixed(4)}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Grado Promedio</span>
+                    <span class="metric-value">${basicas.gradoPromedio.toFixed(2)}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Grado Máximo</span>
+                    <span class="metric-value">${basicas.gradoMaximo}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Componentes Conexos</span>
+                    <span class="metric-value">${basicas.componentesConexos}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Componente Principal</span>
+                    <span class="metric-value">${basicas.componentePrincipal} nodos</span>
+                </div>
+            `;
+            document.getElementById('propiedadesBasicas').innerHTML = html;
+        }
+        
+        function mostrarConectividad(conectividad) {
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Coeficiente de Agrupamiento</span>
+                    <span class="metric-value">${conectividad.coeficienteAgrupamiento.toFixed(4)}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Diámetro de la Red</span>
+                    <span class="metric-value">${conectividad.diametro.toFixed(0)} km</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Asortatividad</span>
+                    <span class="metric-value">${conectividad.asortatividad.toFixed(4)}</span>
+                </div>
+            `;
+            document.getElementById('conectividad').innerHTML = html;
+        }
+        
+        function mostrarCentralidades(centralidades) {
+            const topGrado = centralidades.grado
+                .map((c, i) => ({ indice: i, valor: c.normalizado }))
+                .sort((a, b) => b.valor - a.valor)
+                .slice(0, 3);
+            
+            const topPageRank = centralidades.pagerank
+                .map((c, i) => ({ indice: i, valor: c.normalizado }))
+                .sort((a, b) => b.valor - a.valor)
+                .slice(0, 3);
+            
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Top Centralidad Grado</span>
+                    <span class="metric-value">${window.grafo.aeropuertos[topGrado[0].indice].nombre}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Top PageRank</span>
+                    <span class="metric-value">${window.grafo.aeropuertos[topPageRank[0].indice].nombre}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Varianza Centralidad</span>
+                    <span class="metric-value">${calcularVarianza(centralidades.grado).toFixed(6)}</span>
+                </div>
+            `;
+            document.getElementById('centralidades').innerHTML = html;
+        }
+        
+        function mostrarComunidades(comunidades) {
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Número de Comunidades</span>
+                    <span class="metric-value">${comunidades.numero}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Modularidad</span>
+                    <span class="metric-value">${comunidades.modularidad.toFixed(4)}</span>
+                </div>
+                <div class="community-grid">
+                    ${Object.entries(comunidades.tamanos).slice(0, 8).map(([id, tamano]) => 
+                        `<div class="community-item">Comunidad ${id}<br>${tamano} nodos</div>`
+                    ).join('')}
+                </div>
+            `;
+            document.getElementById('comunidades').innerHTML = html;
+        }
+        
+        function mostrarTopHubs(hubs) {
+            const html = hubs.map((hub, i) => `
+                <div class="hub-item">
+                    <div class="hub-rank">#${i + 1}</div>
+                    <div class="hub-info">
+                        <h4>${hub.aeropuerto.nombre} (${hub.aeropuerto.iata})</h4>
+                        <p>${hub.aeropuerto.ciudad}, ${hub.aeropuerto.pais}</p>
+                    </div>
+                    <div class="hub-stats">
+                        <div>${hub.gradoTotal} conexiones</div>
+                        <div>Score: ${hub.puntuacion.toFixed(1)}</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('topHubs').innerHTML = html;
+        }
+        
+        function mostrarMetricasAerolineas(aerolineas) {
+            const html = `
+                <div class="metric">
+                    <span class="metric-label">Eficiencia de Rutas</span>
+                    <span class="metric-value">${(aerolineas.eficienciaRutas * 100).toFixed(2)}%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Redundancia de Red</span>
+                    <span class="metric-value">${(aerolineas.redundanciaRed * 100).toFixed(2)}%</span>
+                </div>
+            `;
+            document.getElementById('metricasAerolineas').innerHTML = html;
+            
+            const regionesHtml = Object.entries(aerolineas.conectividadRegional)
+                .map(([region, datos]) => `
+                    <div class="metric">
+                        <span class="metric-label">${region}</span>
+                        <span class="metric-value">${datos.aeropuertos.length} aeropuertos</span>
+                    </div>
+                `).join('');
+            
+            document.getElementById('conectividadRegional').innerHTML = regionesHtml;
+        }
+        
+        function crearGraficoGrados(distribucion) {
+            const ctx = document.getElementById('gradosChart').getContext('2d');
+            
+            const grados = Object.keys(distribucion).map(Number).sort((a, b) => a - b);
+            const frecuencias = grados.map(g => distribucion[g]);
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: grados.slice(0, 30),
+                    datasets: [{
+                        label: 'Frecuencia',
+                        data: frecuencias.slice(0, 30),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'white' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Grado', color: 'white' },
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Número de Nodos', color: 'white' },
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function exportarResultados() {
+            if (!datosAnalisis) return;
+            
+            const dataStr = JSON.stringify(datosAnalisis, null, 2);
+            const blob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `analisis_grafos_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+        
+        function mostrarLoading(mensaje) {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingText').textContent = mensaje;
+            document.getElementById('error').style.display = 'none';
+        }
+        
+        function ocultarLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        function mostrarError(mensaje) {
+            document.getElementById('error').textContent = mensaje;
+            document.getElementById('error').style.display = 'block';
+        }
+        
+        function mostrarExito(mensaje) {
+            console.log('✅ ' + mensaje);
+        }
+        
+        function actualizarProgreso(porcentaje, texto) {
+            document.getElementById('progressFill').style.width = porcentaje + '%';
+            document.getElementById('loadingText').textContent = texto;
+        }
+        
+        function calcularVarianza(valores) {
+            const media = valores.reduce((sum, v) => sum + v.valor, 0) / valores.length;
+            const varianza = valores.reduce((sum, v) => sum + Math.pow(v.valor - media, 2), 0) / valores.length;
+            return varianza;
+        }
+        
+        function esperar(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>
